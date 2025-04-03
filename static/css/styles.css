@@ -1,0 +1,70 @@
+/* Custom styles for the text generator application */
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    flex: 1;
+}
+
+/* Style for the text output area */
+.text-output {
+    min-height: 150px;
+    border-radius: 0.25rem;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    line-height: 1.6;
+}
+
+/* Animation for the loading state */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading {
+    animation: pulse 1.5s infinite;
+}
+
+/* Styling for the card headers */
+.card-header {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Ensure the cards have a consistent look */
+.card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1rem;
+}
+
+/* Improve form control visibility */
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Style the copy button when active */
+#copy-btn:not(:disabled):active {
+    background-color: var(--bs-success);
+    border-color: var(--bs-success);
+}
+
+/* Ensure buttons have appropriate hover states */
+.btn:hover {
+    opacity: 0.9;
+}
+
+/* Custom styles for mobile view */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
