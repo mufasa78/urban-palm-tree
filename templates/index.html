@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="{{ g.lang }}" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Text Generator</title>
+    <title>{{ _('AI Text Generator') }}</title>
     <!-- Bootstrap CSS (Replit Theme) -->
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
     <!-- Custom CSS -->
@@ -11,11 +11,22 @@
 </head>
 <body>
     <div class="container py-4">
+        <div class="d-flex justify-content-end mb-2">
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    {{ _('Language') }}: {{ g.lang.upper() }}
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="languageDropdown">
+                    <li><a class="dropdown-item {% if g.lang == 'en' %}active{% endif %}" href="?lang=en">English</a></li>
+                    <li><a class="dropdown-item {% if g.lang == 'zh' %}active{% endif %}" href="?lang=zh">中文 (Chinese)</a></li>
+                </ul>
+            </div>
+        </div>
         <header class="text-center mb-5">
-            <h1 class="display-4">AI Text Generator</h1>
-            <p class="lead">Enter a keyword or phrase and let AI generate text for you</p>
+            <h1 class="display-4">{{ _('AI Text Generator') }}</h1>
+            <p class="lead">{{ _('Enter a keyword or phrase and let AI generate text for you') }}</p>
             <div class="alert alert-info">
-                <p class="mb-0">This is an educational tool that demonstrates how machine learning models can generate text based on input prompts.</p>
+                <p class="mb-0">{{ _('This is an educational tool that demonstrates how machine learning models can generate text based on input prompts.') }}</p>
             </div>
         </header>
 
@@ -23,17 +34,17 @@
             <div class="col-md-8">
                 <div class="card">
                     <div class="card-header">
-                        <h2 class="h5 mb-0">Input</h2>
+                        <h2 class="h5 mb-0">{{ _('Input') }}</h2>
                     </div>
                     <div class="card-body">
                         <form id="generation-form">
                             <div class="mb-3">
-                                <label for="prompt" class="form-label">Enter a keyword or short sentence:</label>
-                                <input type="text" class="form-control" id="prompt" 
-                                       placeholder="Example: 'The future of technology'" required>
+                                <label for="prompt" class="form-label">{{ _('Enter a keyword or short sentence:') }}</label>
+                                <input type="text" class="form-control" id="prompt"
+                                       placeholder="{{ _('Example: \'The future of technology\'') }}" required>
                             </div>
                             <button type="submit" class="btn btn-primary" id="generate-btn">
-                                Generate Text
+                                {{ _('Generate Text') }}
                                 <span class="spinner-border spinner-border-sm d-none" id="loading-spinner" role="status" aria-hidden="true"></span>
                             </button>
                         </form>
@@ -46,14 +57,14 @@
             <div class="col-md-8">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h2 class="h5 mb-0">Generated Text</h2>
+                        <h2 class="h5 mb-0">{{ _('Generated Text') }}</h2>
                         <button id="copy-btn" class="btn btn-sm btn-outline-secondary" disabled>
-                            <i class="bi bi-clipboard"></i> Copy
+                            <i class="bi bi-clipboard"></i> {{ _('Copy') }}
                         </button>
                     </div>
                     <div class="card-body">
                         <div id="result" class="bg-dark p-3 rounded mb-3 text-output">
-                            <p class="text-muted">Generated text will appear here...</p>
+                            <p class="text-muted">{{ _('Generated text will appear here...') }}</p>
                         </div>
                         <div id="error-message" class="alert alert-danger d-none"></div>
                     </div>
@@ -65,31 +76,31 @@
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header">
-                        <h2 class="h5 mb-0">How It Works</h2>
+                        <h2 class="h5 mb-0">{{ _('How It Works') }}</h2>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <div class="card h-100">
                                     <div class="card-body">
-                                        <h3 class="h6 card-title">1. Input Processing</h3>
-                                        <p class="card-text">Your input is tokenized (split into pieces that the model can understand) and preprocessed.</p>
+                                        <h3 class="h6 card-title">{{ _('1. Input Processing') }}</h3>
+                                        <p class="card-text">{{ _('Your input is tokenized (split into pieces that the model can understand) and preprocessed.') }}</p>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <div class="card h-100">
                                     <div class="card-body">
-                                        <h3 class="h6 card-title">2. Model Generation</h3>
-                                        <p class="card-text">A Markov chain text model finds patterns and generates coherent text based on your input.</p>
+                                        <h3 class="h6 card-title">{{ _('2. Model Generation') }}</h3>
+                                        <p class="card-text">{{ _('A Markov chain text model finds patterns and generates coherent text based on your input.') }}</p>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <div class="card h-100">
                                     <div class="card-body">
-                                        <h3 class="h6 card-title">3. Text Output</h3>
-                                        <p class="card-text">The model's output is decoded back into human-readable text and displayed to you.</p>
+                                        <h3 class="h6 card-title">{{ _('3. Text Output') }}</h3>
+                                        <p class="card-text">{{ _('The model\'s output is decoded back into human-readable text and displayed to you.') }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -100,9 +111,16 @@
         </div>
 
         <footer class="mt-5 text-center">
-            <p>Educational Text Generation Project | Using Flask & Markov Chain Models</p>
+            <p>{{ _('Educational Text Generation Project | Using Flask & Markov Chain Models') }}</p>
         </footer>
     </div>
+
+    <!-- Hidden div for translated error messages -->
+    <div id="error-messages" class="d-none"
+         data-empty-prompt-error="{{ _('Please enter a keyword or phrase.') }}"
+         data-copy-success="{{ _('Copied!') }}"
+         data-copy-error="{{ _('Failed to copy text to clipboard') }}"
+         data-generation-error="{{ _('An error occurred while generating text.') }}"></div>
 
     <!-- JavaScript Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
