@@ -88,8 +88,8 @@ msgid "The model's output is decoded back into human-readable text and displayed
 msgstr "模型的输出被解码回人类可读的文本并显示给您。"
 
 #: templates/index.html:114
-msgid "Educational Text Generation Project | Using Flask & Markov Chain Models"
-msgstr "教育文本生成项目 | 使用Flask和马尔可夫链模型"
+msgid "Educational Text Generation Project | Using Flask, Transformer & Markov Chain Models"
+msgstr "教育文本生成项目 | 使用Flask、Transformer和马尔可夫链模型"
 
 #: templates/index.html:120
 msgid "Please enter a keyword or phrase."
@@ -106,3 +106,19 @@ msgstr "复制到剪贴板失败"
 #: templates/index.html:123
 msgid "An error occurred while generating text."
 msgstr "生成文本时发生错误。"
+
+#: templates/index.html:47
+msgid "Select Model:"
+msgstr "选择模型："
+
+#: templates/index.html:49
+msgid "Transformer (DistilGPT-2)"
+msgstr "Transformer (DistilGPT-2)"
+
+#: templates/index.html:50
+msgid "Markov Chain"
+msgstr "马尔可夫链"
+
+#: templates/index.html:53
+msgid "Transformer models generate more coherent text but may take longer."
+msgstr "Transformer模型生成更连贯的文本，但可能需要更长时间。"

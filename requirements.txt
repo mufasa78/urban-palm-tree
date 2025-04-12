@@ -4,6 +4,12 @@ flask>=3.1.0
 flask-babel>=4.0.0
 python-dotenv>=1.0.0
 
+# Text generation dependencies
+transformers>=4.30.0
+torch>=2.0.0
+sentencepiece>=0.1.99
+protobuf>=3.20.0
+
 # Deployment dependencies
 gunicorn>=23.0.0
 

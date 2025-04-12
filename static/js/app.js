@@ -15,6 +15,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get the prompt value
         const prompt = promptInput.value.trim();
 
+        // Get the selected model
+        const modelSelect = document.getElementById('model-select');
+        const modelType = modelSelect ? modelSelect.value : 'transformer';
+
         // Validate the prompt
         if (!prompt) {
             // Get error message from data attribute based on current language
@@ -36,7 +40,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ prompt })
+                body: JSON.stringify({
+                    prompt,
+                    model_type: modelType
+                })
             });
 
             // Check if the response is OK
@@ -48,8 +55,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Parse the response data
             const data = await response.json();
 
-            // Display the generated text
-            displayGeneratedText(data.generated_text);
+            // Display the generated text and model used
+            const modelUsed = data.model_used || 'unknown';
+            displayGeneratedText(data.generated_text, modelUsed);
 
             // Enable the copy button
             copyBtn.disabled = false;
@@ -65,9 +73,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Function to display the generated text
-    function displayGeneratedText(text) {
+    // Function to display the generated text and model used
+    function displayGeneratedText(text, modelUsed) {
         resultDiv.innerHTML = '';
+
+        // Add model info
+        const modelInfo = document.createElement('p');
+        modelInfo.innerHTML = `<small><strong>Model used:</strong> ${modelUsed.charAt(0).toUpperCase() + modelUsed.slice(1)}</small>`;
+        modelInfo.style.color = '#6c757d';
+        modelInfo.style.marginBottom = '10px';
+        resultDiv.appendChild(modelInfo);
+
+        // Add generated text
         const paragraph = document.createElement('p');
         paragraph.textContent = text;
         resultDiv.appendChild(paragraph);

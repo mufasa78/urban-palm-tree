@@ -43,6 +43,16 @@
                                 <input type="text" class="form-control" id="prompt"
                                        placeholder="{{ _('Example: \'The future of technology\'') }}" required>
                             </div>
+                            <div class="mb-3">
+                                <label for="model-select" class="form-label">{{ _('Select Model:') }}</label>
+                                <select class="form-control" id="model-select">
+                                    <option value="transformer" selected>{{ _('Transformer (DistilGPT-2)') }}</option>
+                                    <option value="markov">{{ _('Markov Chain') }}</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    {{ _('Transformer models generate more coherent text but may take longer.') }}
+                                </small>
+                            </div>
                             <button type="submit" class="btn btn-primary" id="generate-btn">
                                 {{ _('Generate Text') }}
                                 <span class="spinner-border spinner-border-sm d-none" id="loading-spinner" role="status" aria-hidden="true"></span>
@@ -111,7 +121,7 @@
         </div>
 
         <footer class="mt-5 text-center">
-            <p>{{ _('Educational Text Generation Project | Using Flask & Markov Chain Models') }}</p>
+            <p>{{ _('Educational Text Generation Project | Using Flask, Transformer & Markov Chain Models') }}</p>
         </footer>
     </div>
 
