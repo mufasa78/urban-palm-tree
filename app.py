@@ -2,12 +2,13 @@ import os
 import logging
 from flask import Flask, render_template, request, jsonify, session, g
 from flask_babel import Babel, gettext as _
+from deep_translator import GoogleTranslator
 
 # Import text generator
 from text_generator import TextGenerator
 
-# Comment out transformer import until dependencies are installed
-# from transformer_text_generator import TransformerTextGenerator
+# Import transformer text generator
+from transformer_text_generator import TransformerTextGenerator
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -44,8 +45,8 @@ def before_request():
 # Initialize the text generator model
 text_generator = None
 
-# Flag to determine which generator to use (set to False to use Markov only)
-USE_TRANSFORMER = False
+# Flag to determine which generator to use
+USE_TRANSFORMER = True
 
 try:
     # Load Markov chain model
@@ -53,12 +54,12 @@ try:
     text_generator = TextGenerator()
     logger.info("Markov chain model loaded successfully!")
 
-    # Transformer model code is commented out until dependencies are installed
-    # logger.info("Loading transformer text generation model...")
-    # transformer_generator = TransformerTextGenerator(model_name="distilgpt2")
-    # logger.info(f"Transformer model loaded successfully on {transformer_generator.device}!")
-    # model_info = transformer_generator.get_model_info()
-    # logger.info(f"Model: {model_info['model_name']}, Parameters: {model_info['parameters']:,}, Device: {model_info['device']}")
+    # Load transformer model
+    logger.info("Loading transformer text generation model...")
+    transformer_generator = TransformerTextGenerator(model_name="distilgpt2")
+    logger.info(f"Transformer model loaded successfully on {transformer_generator.device}!")
+    model_info = transformer_generator.get_model_info()
+    logger.info(f"Model: {model_info['model_name']}, Parameters: {model_info['parameters']:,}, Device: {model_info['device']}")
 
 except Exception as e:
     logger.error(f"Error loading text generation model: {e}")
@@ -81,9 +82,27 @@ def generate_text():
         if not prompt:
             return jsonify({'error': 'No prompt provided'}), 400
 
-        # Generate text using Markov model
-        generated_text = text_generator.generate_text(prompt)
-        model_used = 'markov'
+        # Get the current language
+        current_lang = session.get('lang', 'en')
+
+        # Generate text using selected model
+        if model_type == 'transformer' and USE_TRANSFORMER:
+            generated_text = transformer_generator.generate_text(prompt, max_length=200)
+            model_used = 'transformer'
+        else:
+            generated_text = text_generator.generate_text(prompt)
+            model_used = 'markov'
+
+        # Translate the generated text if language is Chinese
+        if current_lang == 'zh':
+            try:
+                logger.info(f"Translating text to Chinese: {generated_text[:50]}...")
+                translator = GoogleTranslator(source='en', target='zh-CN')
+                generated_text = translator.translate(generated_text)
+                logger.info(f"Translation successful: {generated_text[:50]}...")
+            except Exception as e:
+                logger.error(f"Translation error: {e}")
+                # Continue with untranslated text if translation fails
 
         return jsonify({
             'generated_text': generated_text,

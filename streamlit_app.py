@@ -4,6 +4,7 @@ import random
 import re
 import torch
 from collections import defaultdict
+from deep_translator import GoogleTranslator
 
 # Import the transformer text generator
 from transformer_text_generator import TransformerTextGenerator
@@ -11,6 +12,13 @@ from transformer_text_generator import TransformerTextGenerator
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Set page configuration first - this must be the first Streamlit command
+st.set_page_config(
+    page_title="AI Text Generator",
+    page_icon="📝",
+    layout="wide"
+)
 
 # Define translations
 translations = {
@@ -197,8 +205,9 @@ class TextGenerator:
             else:
                 current_word = starter_words[0]
 
-            result = [prompt]  # Start with the original prompt
-            word_count = len(prompt.split())
+            # Don't just repeat the prompt - start with it but then generate new content
+            result = []  # We'll add the prompt back at the end
+            word_count = 0
 
             # Generate text using the Markov chain
             while word_count < max_length:
@@ -221,16 +230,39 @@ class TextGenerator:
                 current_word = next_word
                 word_count += 1
 
+                # Add some variety by occasionally inserting phrases from the corpus
+                if word_count % 20 == 0 and random.random() < 0.3:
+                    random_text = random.choice(self.corpus[category]).split()
+                    insert_phrase = random_text[1:min(5, len(random_text))]
+                    result.extend(insert_phrase)
+                    current_word = insert_phrase[-1] if insert_phrase else current_word
+                    word_count += len(insert_phrase)
+
                 # Add some randomness for sentence endings
                 if next_word.endswith(('.', '!', '?')) and random.random() < 0.3:
                     break
 
-            # Join all words into a coherent text
-            generated_text = ' '.join(result)
+            # Combine the prompt with the generated text
+            if len(result) > 0:
+                # Join all words into a coherent text
+                generated_part = ' '.join(result)
 
-            # Clean up spacing around punctuation
-            generated_text = re.sub(r'\s+([.,;:!?)])', r'\1', generated_text)
-            generated_text = re.sub(r'(\()\s+', r'\1', generated_text)
+                # Clean up spacing around punctuation
+                generated_part = re.sub(r'\s+([.,;:!?)])', r'\1', generated_part)
+                generated_part = re.sub(r'(\()\s+', r'\1', generated_part)
+
+                # Make sure we have enough text (at least 100 characters)
+                if len(generated_part) < 100:
+                    # Add more text from the corpus
+                    additional_text = random.choice(self.corpus[category])
+                    generated_part += " " + additional_text
+
+                # Combine with the prompt
+                generated_text = f"{prompt} {generated_part}"
+            else:
+                # Fallback if no text was generated
+                sample_texts = [random.choice(self.corpus[category]) for _ in range(3)]
+                generated_text = f"{prompt} {' '.join(sample_texts)}"
 
             self.logger.info("Text generation successful")
             return generated_text
@@ -239,7 +271,7 @@ class TextGenerator:
             self.logger.error(f"Error in text generation: {e}")
             raise
 
-# Initialize the text generators
+# Initialize the text generators and translator
 @st.cache_resource
 def load_text_generators():
     generators = {
@@ -247,6 +279,8 @@ def load_text_generators():
         'transformer': TransformerTextGenerator(model_name="distilgpt2")
     }
     return generators
+
+# No need to initialize translator as we'll create it when needed
 
 def main():
     # Initialize session state for language and model type if they don't exist
@@ -256,15 +290,14 @@ def main():
     if 'model_type' not in st.session_state:
         st.session_state.model_type = 'transformer'
 
+    if 'generated_text' not in st.session_state:
+        st.session_state.generated_text = None
+
+    # Load text generators
+    generators = load_text_generators()
+
     # Get translations for the current language
     t = translations[st.session_state.language]
-
-    # Set page configuration
-    st.set_page_config(
-        page_title=t['app_title'],
-        page_icon="📝",
-        layout="wide"
-    )
 
     # Add custom CSS for Chinese font support
     st.markdown("""
@@ -356,13 +389,74 @@ def main():
         else:
             try:
                 with st.spinner():
+                    # Get the selected model
+                    model_type = st.session_state.model_type
+                    text_generator = generators[model_type]
+
                     # Use the selected model
-                    generated_text = text_generator.generate_text(prompt)
+                    generated_text = text_generator.generate_text(prompt, max_length=200)  # Increase max_length for more text
+
+                    # Translate text if language is Chinese
+                    if st.session_state.language == "zh":
+                        try:
+                            logger.info(f"Translating text to Chinese: {generated_text[:50]}...")
+                            translator = GoogleTranslator(source='en', target='zh-CN')
+                            generated_text = translator.translate(generated_text)
+                            logger.info(f"Translation successful: {generated_text[:50]}...")
+                        except Exception as e:
+                            logger.error(f"Translation error: {e}")
+                            # Continue with untranslated text if translation fails
+
                     st.session_state.generated_text = generated_text
 
                     # Display model used and generated text
                     output_placeholder.markdown(f"**Model used:** {st.session_state.model_type.capitalize()}")
-                    output_placeholder.markdown(generated_text)
+
+                    # Format the output to clearly show the generated text
+                    if generated_text.startswith(prompt):
+                        # Highlight the prompt part differently
+                        prompt_part = prompt
+                        generated_part = generated_text[len(prompt):]
+
+                        # Make sure we have meaningful generated text
+                        if len(generated_part.strip()) < 10:
+                            # If generated part is too short, regenerate with different model
+                            logger.warning("Generated text too short, trying with different parameters")
+                            if st.session_state.model_type == 'transformer':
+                                # Try with Markov model instead
+                                backup_generator = generators['markov']
+                                generated_text = backup_generator.generate_text(prompt, max_length=300)
+                            else:
+                                # Try with transformer model instead
+                                backup_generator = generators['transformer']
+                                generated_text = backup_generator.generate_text(prompt, max_length=300)
+
+                            # Check if the new text starts with the prompt
+                            if generated_text.startswith(prompt):
+                                prompt_part = prompt
+                                generated_part = generated_text[len(prompt):]
+                            else:
+                                prompt_part = ""
+                                generated_part = generated_text
+
+                        formatted_text = f"""
+                        <div style='background-color: #f0f2f6; padding: 15px; border-radius: 5px; margin-bottom: 10px;'>
+                            <span style='color: #555; font-style: italic;'>{prompt_part}</span>
+                            <span style='color: #000;'>{generated_part}</span>
+                        </div>
+                        """
+                    else:
+                        formatted_text = f"""
+                        <div style='background-color: #f0f2f6; padding: 15px; border-radius: 5px; margin-bottom: 10px;'>
+                            <span style='color: #000;'>{generated_text}</span>
+                        </div>
+                        """
+
+                    output_placeholder.markdown(formatted_text, unsafe_allow_html=True)
+
+                    # Also display the raw text in a code block for clarity
+                    with st.expander("Show raw generated text"):
+                        st.code(generated_text)
             except Exception as e:
                 st.error(f"{t['error_generation']} {str(e)}")
 
