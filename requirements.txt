@@ -10,6 +10,10 @@ torch>=2.0.0
 protobuf>=3.20.0
 pandas>=2.0.0
 deep-translator>=1.11.0
+sentencepiece>=0.1.99  # Required for many Chinese models
+accelerate>=0.20.0  # For model optimization
+bitsandbytes>=0.41.0  # For 4-bit quantization
+safetensors>=0.3.1  # For safer model loading
 
 # Natural Language Processing
 jieba>=0.42.1  # For Chinese text processing

@@ -92,6 +92,9 @@ body {
 .generated-text {
     white-space: pre-wrap;
     word-wrap: break-word;
+    line-height: 1.8; /* Better line height for Chinese text */
+    font-size: 1.05rem; /* Slightly larger font for better readability */
+    text-align: justify; /* Justified text for Chinese looks better */
 }
 
 .generated-text .prompt {
@@ -101,6 +104,7 @@ body {
 
 .generated-text .generated {
     color: var(--dark-text);
+    font-family: 'Noto Sans CJK SC', 'Microsoft YaHei', '微软雅黑', sans-serif; /* Prioritize Chinese fonts */
 }
 
 /* Model selection */
@@ -157,7 +161,7 @@ body {
     color: var(--accent-color);
 }
 
-.btn-outline-primary:hover, 
+.btn-outline-primary:hover,
 .btn-outline-primary.active {
     background-color: var(--accent-color);
     border-color: var(--accent-color);
@@ -283,7 +287,7 @@ body {
         right: 1rem;
         max-width: none;
     }
-    
+
     .generation-loading {
         padding: 1rem;
     }

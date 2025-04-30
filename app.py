@@ -9,6 +9,7 @@ from deep_translator import GoogleTranslator
 # Import text generators
 from text_generator import TextGenerator
 from transformer_text_generator import TransformerTextGenerator
+from chinese_llm_generator import ChineseLLMGenerator
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -46,7 +47,7 @@ babel = Babel(app, default_locale='zh', default_timezone='UTC', locale_selector=
 def before_request():
     # Set language to Chinese
     g.lang = 'zh'
-    
+
     # Make topics available to templates
     g.topics = TOPICS
 
@@ -69,7 +70,9 @@ def load_datasets():
 # Initialize text generators
 generators = {
     'markov': TextGenerator(),
-    'transformer': TransformerTextGenerator(model_name="distilgpt2")
+    'transformer': TransformerTextGenerator(model_name="distilgpt2"),
+    'chatglm': ChineseLLMGenerator(model_name="THUDM/chatglm3-6b"),
+    'qwen': ChineseLLMGenerator(model_name="Qwen/Qwen-7B")
 }
 
 # Load datasets
@@ -153,13 +156,13 @@ def change_model():
     try:
         data = request.get_json()
         model_type = data.get('model_type')
-        
+
         if model_type not in generators:
             return jsonify({'error': _('无效的模型类型')}), 400
-            
+
         session['model_type'] = model_type
         return jsonify({
-            'success': True, 
+            'success': True,
             'model_type': model_type,
             'message': _('模型切换成功')
         })
