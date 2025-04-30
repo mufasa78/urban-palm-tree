@@ -1,13 +1,23 @@
 /* Custom styles for the text generator application */
 
 /* General styles */
+:root {
+    --dark-bg: #1a1a1a;
+    --dark-card-bg: #2d2d2d;
+    --dark-text: #e0e0e0;
+    --dark-border: #404040;
+    --dark-hover: #3d3d3d;
+    --accent-color: #4d9fff;
+}
+
 body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     /* Add font family that supports Chinese characters */
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft YaHei', '微软雅黑', sans-serif;
-    background-color: #f8f9fa;
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
 }
 
 .container {
@@ -36,19 +46,25 @@ body {
 
 /* Styling for the card headers */
 .card-header {
-    background-color: rgba(0, 0, 0, 0.03);
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--dark-border);
+    color: var(--dark-text);
 }
 
 /* Ensure the cards have a consistent look */
 .card {
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--dark-card-bg);
+    border: 1px solid var(--dark-border);
     margin-bottom: 1rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Improve form control visibility */
 .form-control:focus {
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    background-color: var(--dark-bg);
+    border-color: var(--accent-color);
+    color: var(--dark-text);
+    box-shadow: 0 0 0 0.25rem rgba(77, 159, 255, 0.25);
 }
 
 /* Style the copy button when active */
@@ -65,11 +81,12 @@ body {
 /* Generated text area */
 .output-area {
     min-height: 150px;
-    background-color: #fff;
-    border: 1px solid rgba(0,0,0,0.125);
+    background-color: var(--dark-card-bg);
+    border: 1px solid var(--dark-border);
     border-radius: 4px;
     padding: 1rem;
     margin-bottom: 1rem;
+    color: var(--dark-text);
 }
 
 .generated-text {
@@ -78,12 +95,12 @@ body {
 }
 
 .generated-text .prompt {
-    color: #555;
+    color: #a8a8a8;
     font-style: italic;
 }
 
 .generated-text .generated {
-    color: #000;
+    color: var(--dark-text);
 }
 
 /* Model selection */
@@ -107,15 +124,19 @@ body {
     width: 2rem;
     height: 2rem;
     margin: 1rem auto;
+    color: var(--accent-color);
 }
 
 /* Copy button */
 .copy-button {
     transition: all 0.2s ease;
+    background-color: var(--dark-card-bg);
+    color: var(--dark-text);
+    border: 1px solid var(--dark-border);
 }
 
 .copy-button:hover {
-    background-color: #e9ecef;
+    background-color: var(--dark-hover);
 }
 
 /* Custom styles for mobile view */
@@ -126,6 +147,144 @@ body {
     }
 
     .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Buttons */
+.btn-outline-primary {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.btn-outline-primary:hover, 
+.btn-outline-primary.active {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--dark-bg);
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+/* Text colors */
+.text-muted {
+    color: #888 !important;
+}
+
+.lead {
+    color: #ccc;
+}
+
+/* Error messages */
+.alert-danger {
+    background-color: #442626;
+    border-color: #642c2c;
+    color: #ff9999;
+}
+
+/* Loading animations */
+.generation-loading {
+    padding: 2rem;
+    text-align: center;
+}
+
+.generation-loading .progress {
+    height: 4px;
+    background-color: var(--dark-border);
+}
+
+.generation-loading .progress-bar {
+    width: 100%;
+    background-color: var(--accent-color);
+}
+
+/* Notification styles */
+.notification {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1050;
+    min-width: 250px;
+    max-width: 350px;
+    animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-in 4.5s forwards;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+/* Generated text animations */
+.generated-text {
+    opacity: 0;
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Button loading state */
+.btn.loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    right: 0.5rem;
+    top: calc(50% - 0.5rem);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .notification {
+        left: 1rem;
+        right: 1rem;
+        max-width: none;
+    }
+    
+    .generation-loading {
         padding: 1rem;
     }
 }

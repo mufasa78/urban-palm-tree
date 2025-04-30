@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI文本生成器</title>
-    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
@@ -13,6 +14,18 @@
             <h1 class="display-4">AI文本生成器</h1>
             <p class="lead">输入关键词或短语，让AI为您生成文本</p>
         </header>
+
+        <!-- Error flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
         <div class="row">
             <div class="col-md-3">
@@ -102,17 +115,18 @@
             </div>
         </div>
 
-        <footer class="text-center mt-5 text-muted">
-            <p>AI文本生成项目 | 基于深度学习模型</p>
+        <footer class="text-center mt-5">
+            <p class="text-muted">AI文本生成项目 | 基于深度学习模型</p>
+            <p class="text-muted small">© {{ year }} TextWeaver AI</p>
         </footer>
     </div>
 
-    <!-- Hidden div for error messages -->
     <div id="error-messages" class="d-none"
          data-empty-prompt-error="请输入关键词或短语"
          data-copy-success="已复制！"
          data-copy-error="复制到剪贴板失败"
-         data-generation-error="生成文本时发生错误"></div>
+         data-generation-error="生成文本时发生错误"
+         data-network-error="网络连接错误"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>

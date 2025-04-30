@@ -6,20 +6,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const modelButtons = document.querySelectorAll('.model-select');
     const topicSelect = document.getElementById('topicSelect');
     const modelDescription = document.getElementById('modelDescription');
+    const errorMessages = document.getElementById('error-messages');
 
     // Current model state
     let currentModel = 'transformer';
+    let isGenerating = false;
 
     // Model descriptions in Chinese
     const modelDescriptions = {
-        transformer: 'GPT-2：强大的语言模型，生成连贯的文本',
-        markov: '马尔可夫链：基于统计的文本生成模型'
+        transformer: 'GPT-2：强大的语言模型，生成连贯且富有创意的文本',
+        markov: '马尔可夫链：基于统计的文本生成模型，适合短文本生成'
     };
 
     // Handle model selection
     modelButtons.forEach(button => {
         button.addEventListener('click', async function() {
+            if (isGenerating) return; // Prevent model change during generation
+            
             const model = this.dataset.model;
+            this.classList.add('loading');
             
             try {
                 const response = await fetch('/change_model', {
@@ -30,33 +35,66 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: JSON.stringify({ model_type: model })
                 });
 
+                const data = await response.json();
+
                 if (response.ok) {
-                    // Update UI
                     currentModel = model;
-                    modelButtons.forEach(btn => {
-                        btn.classList.remove('active');
-                    });
+                    modelButtons.forEach(btn => btn.classList.remove('active'));
                     this.classList.add('active');
                     modelDescription.textContent = modelDescriptions[model];
+                    
+                    // Show success message
+                    showNotification(data.message || '模型切换成功', 'success');
+                } else {
+                    throw new Error(data.error || '模型切换失败');
                 }
             } catch (error) {
-                console.error('模型切换错误:', error);
+                showNotification(error.message, 'danger');
+            } finally {
+                this.classList.remove('loading');
             }
         });
     });
 
+    // Show notification function
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show notification`;
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.querySelector('.container').insertAdjacentElement('afterbegin', notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+
     // Handle form submission
     generateForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+        if (isGenerating) return;
 
         const prompt = promptInput.value.trim();
         if (!prompt) {
-            outputDiv.innerHTML = '<div class="alert alert-danger">请输入关键词或短语</div>';
+            showNotification(errorMessages.dataset.emptyPromptError, 'warning');
             return;
         }
 
-        // Show loading state
-        outputDiv.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><p>生成中...</p></div>';
+        isGenerating = true;
+        const submitButton = this.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        
+        // Show loading state with progress animation
+        outputDiv.innerHTML = `
+            <div class="generation-loading">
+                <div class="progress mb-3">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"></div>
+                </div>
+                <p class="text-center">正在生成中，请稍候...</p>
+            </div>
+        `;
 
         try {
             const response = await fetch('/generate', {
@@ -74,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (response.ok) {
-                // Format the output
+                // Format the output with enhanced styling
                 let outputHtml = '<div class="generated-text">';
                 if (data.generated_text.startsWith(prompt)) {
                     outputHtml += `<span class="prompt">${prompt}</span>`;
@@ -83,8 +121,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     outputHtml += `<span class="generated">${data.generated_text}</span>`;
                 }
                 outputHtml += '</div>';
-                outputHtml += `<div class="mt-2"><small class="text-muted">使用模型: ${data.model_used}</small></div>`;
-                outputHtml += '<button class="btn btn-sm btn-outline-secondary mt-2 copy-button">复制文本</button>';
+                
+                // Add metadata and controls
+                outputHtml += `
+                    <div class="generation-meta mt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">使用模型: ${data.model_used}</small>
+                            <button class="btn btn-sm btn-outline-primary copy-button">
+                                <i class="bi bi-clipboard"></i> 复制文本
+                            </button>
+                        </div>
+                    </div>
+                `;
                 
                 outputDiv.innerHTML = outputHtml;
 
@@ -93,24 +141,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 copyButton.addEventListener('click', async () => {
                     try {
                         await navigator.clipboard.writeText(data.generated_text);
-                        copyButton.textContent = '已复制！';
+                        copyButton.innerHTML = '<i class="bi bi-check2"></i> 已复制！';
                         setTimeout(() => {
-                            copyButton.textContent = '复制文本';
+                            copyButton.innerHTML = '<i class="bi bi-clipboard"></i> 复制文本';
                         }, 2000);
                     } catch (err) {
-                        console.error('复制失败:', err);
-                        copyButton.textContent = '复制失败';
+                        showNotification(errorMessages.dataset.copyError, 'danger');
                     }
                 });
             } else {
-                outputDiv.innerHTML = `<div class="alert alert-danger">${data.error || '生成文本时发生错误'}</div>`;
+                throw new Error(data.error || errorMessages.dataset.generationError);
             }
         } catch (error) {
-            console.error('生成错误:', error);
-            outputDiv.innerHTML = '<div class="alert alert-danger">生成文本时发生错误</div>';
+            showNotification(error.message, 'danger');
+            outputDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+        } finally {
+            isGenerating = false;
+            submitButton.disabled = false;
         }
     });
 
-    // Set initial model description
+    // Set initial model description and active state
     modelDescription.textContent = modelDescriptions[currentModel];
+    modelButtons.forEach(btn => {
+        if (btn.dataset.model === currentModel) {
+            btn.classList.add('active');
+        }
+    });
 });
