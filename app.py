@@ -1,13 +1,12 @@
 import os
 import logging
+import pandas as pd
 from flask import Flask, render_template, request, jsonify, session, g
 from flask_babel import Babel, gettext as _
 from deep_translator import GoogleTranslator
 
-# Import text generator
+# Import text generators
 from text_generator import TextGenerator
-
-# Import transformer text generator
 from transformer_text_generator import TransformerTextGenerator
 
 # Configure logging
@@ -18,51 +17,62 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_key")
 
-# Configure available languages
-APP_LANGUAGES = ['en', 'zh']
+# Configure available language (Chinese only)
+APP_LANGUAGES = ['zh']
+
+# Available topics and their translations
+TOPICS = {
+    'Animals': '动物',
+    'Books': '书籍',
+    'Climate': '气候',
+    'Environment': '环境',
+    'Friends': '朋友',
+    'Hospital': '医院',
+    'Movies': '电影',
+    'Religion': '宗教',
+    'School': '学校',
+    'Space': '太空'
+}
 
 # Function to select locale for Flask-Babel
 def get_locale():
-    # Get language from session or request parameter
-    lang = request.args.get('lang')
-    if lang and lang in APP_LANGUAGES:
-        session['lang'] = lang
-    return session.get('lang', 'en')
+    return 'zh'  # Always return Chinese
 
 # Initialize Babel for internationalization
-babel = Babel(app, default_locale='en', default_timezone='UTC', locale_selector=get_locale)
+babel = Babel(app, default_locale='zh', default_timezone='UTC', locale_selector=get_locale)
 
 @app.before_request
 def before_request():
-    # Set the language for the current request
-    lang = request.args.get('lang')
-    if lang and lang in APP_LANGUAGES:
-        session['lang'] = lang
+    # Set language to Chinese
+    g.lang = 'zh'
+    
+    # Make topics available to templates
+    g.topics = TOPICS
 
-    # Get language from session or default to English
-    g.lang = session.get('lang', 'en')
+def load_datasets():
+    """Load all available datasets"""
+    datasets = {}
+    try:
+        for topic_en in TOPICS.keys():
+            file_path = f"dataset/{topic_en}.csv"
+            try:
+                df = pd.read_csv(file_path)
+                datasets[topic_en] = df
+                logger.info(f"Loaded dataset: {topic_en}")
+            except Exception as e:
+                logger.error(f"Error loading dataset {file_path}: {e}")
+    except Exception as e:
+        logger.error(f"Error loading datasets: {e}")
+    return datasets
 
-# Initialize the text generator model
-text_generator = None
+# Initialize text generators
+generators = {
+    'markov': TextGenerator(),
+    'transformer': TransformerTextGenerator(model_name="distilgpt2")
+}
 
-# Flag to determine which generator to use
-USE_TRANSFORMER = True
-
-try:
-    # Load Markov chain model
-    logger.info("Loading Markov chain text generation model...")
-    text_generator = TextGenerator()
-    logger.info("Markov chain model loaded successfully!")
-
-    # Load transformer model
-    logger.info("Loading transformer text generation model...")
-    transformer_generator = TransformerTextGenerator(model_name="distilgpt2")
-    logger.info(f"Transformer model loaded successfully on {transformer_generator.device}!")
-    model_info = transformer_generator.get_model_info()
-    logger.info(f"Model: {model_info['model_name']}, Parameters: {model_info['parameters']:,}, Device: {model_info['device']}")
-
-except Exception as e:
-    logger.error(f"Error loading text generation model: {e}")
+# Load datasets
+datasets = load_datasets()
 
 @app.route('/')
 def index():
@@ -70,31 +80,34 @@ def index():
 
 @app.route('/generate', methods=['POST'])
 def generate_text():
-    # Check if model is available
-    if text_generator is None:
-        return jsonify({'error': 'Text generation model not loaded. Please check the logs.'}), 500
-
     try:
-        data = request.json
+        data = request.get_json()
         prompt = data.get('prompt', '')
-        model_type = data.get('model_type', 'markov')  # Always use markov for now
+        model_type = data.get('model_type', 'transformer')
+        selected_topic = data.get('topic', None)
 
         if not prompt:
-            return jsonify({'error': 'No prompt provided'}), 400
+            return jsonify({'error': _('请输入关键词或短语')}), 400
 
-        # Get the current language
-        current_lang = session.get('lang', 'en')
+        # Get the appropriate generator
+        text_generator = generators.get(model_type)
+        if not text_generator:
+            return jsonify({'error': _('无效的模型类型')}), 400
 
-        # Generate text using selected model
-        if model_type == 'transformer' and USE_TRANSFORMER:
-            generated_text = transformer_generator.generate_text(prompt, max_length=200)
-            model_used = 'transformer'
-        else:
-            generated_text = text_generator.generate_text(prompt)
-            model_used = 'markov'
+        # Get topic-specific data if a topic is selected
+        topic_data = None
+        if selected_topic and selected_topic in datasets:
+            topic_data = datasets[selected_topic]
 
-        # Translate the generated text if language is Chinese
-        if current_lang == 'zh':
+        # Generate text
+        generated_text = text_generator.generate_text(
+            prompt=prompt,
+            max_length=300,
+            topic_data=topic_data
+        )
+
+        # Ensure text is in Chinese
+        if g.lang == 'zh':
             try:
                 logger.info(f"Translating text to Chinese: {generated_text[:50]}...")
                 translator = GoogleTranslator(source='en', target='zh-CN')
@@ -102,16 +115,27 @@ def generate_text():
                 logger.info(f"Translation successful: {generated_text[:50]}...")
             except Exception as e:
                 logger.error(f"Translation error: {e}")
-                # Continue with untranslated text if translation fails
 
         return jsonify({
             'generated_text': generated_text,
-            'model_used': model_used
+            'model_used': model_type
         })
 
     except Exception as e:
         logger.error(f"Error during text generation: {e}")
-        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+@app.route('/change_model', methods=['POST'])
+def change_model():
+    try:
+        data = request.get_json()
+        model_type = data.get('model_type')
+        if model_type not in ['transformer', 'markov']:
+            return jsonify({'error': _('无效的模型类型')}), 400
+        session['model_type'] = model_type
+        return jsonify({'success': True, 'model_type': model_type})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

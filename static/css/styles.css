@@ -1,11 +1,13 @@
 /* Custom styles for the text generator application */
 
+/* General styles */
 body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     /* Add font family that supports Chinese characters */
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft YaHei', '微软雅黑', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans CJK SC', 'Microsoft YaHei', '微软雅黑', sans-serif;
+    background-color: #f8f9fa;
 }
 
 .container {
@@ -34,13 +36,14 @@ body {
 
 /* Styling for the card headers */
 .card-header {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(0, 0, 0, 0.03);
 }
 
 /* Ensure the cards have a consistent look */
 .card {
     border: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 /* Improve form control visibility */
@@ -59,11 +62,67 @@ body {
     opacity: 0.9;
 }
 
+/* Generated text area */
+.output-area {
+    min-height: 150px;
+    background-color: #fff;
+    border: 1px solid rgba(0,0,0,0.125);
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.generated-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.generated-text .prompt {
+    color: #555;
+    font-style: italic;
+}
+
+.generated-text .generated {
+    color: #000;
+}
+
+/* Model selection */
+.model-select {
+    transition: all 0.3s ease;
+}
+
+.model-select.active {
+    background-color: #0d6efd;
+    color: white;
+}
+
+/* Topic selector */
+.form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13,110,253,0.25);
+}
+
+/* Spinner */
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+    margin: 1rem auto;
+}
+
+/* Copy button */
+.copy-button {
+    transition: all 0.2s ease;
+}
+
+.copy-button:hover {
+    background-color: #e9ecef;
+}
+
 /* Custom styles for mobile view */
 @media (max-width: 768px) {
     .container {
-        padding-left: 15px;
-        padding-right: 15px;
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 
     .card-body {

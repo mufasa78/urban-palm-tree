@@ -7,8 +7,12 @@ python-dotenv>=1.0.0
 # Text generation dependencies
 transformers>=4.30.0
 torch>=2.0.0
-sentencepiece>=0.1.99
 protobuf>=3.20.0
+pandas>=2.0.0
+deep-translator>=1.11.0
+
+# Natural Language Processing
+jieba>=0.42.1  # For Chinese text processing
 
 # Deployment dependencies
 gunicorn>=23.0.0
@@ -18,4 +22,4 @@ flask-sqlalchemy>=3.1.1
 psycopg2-binary>=2.9.10
 
 # Utilities
-email-validator>=2.2.0
+email-validator>=2.0.0

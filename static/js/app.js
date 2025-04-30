@@ -1,175 +1,116 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Get DOM elements
-    const form = document.getElementById('generation-form');
+    const generateForm = document.getElementById('generateForm');
     const promptInput = document.getElementById('prompt');
-    const generateBtn = document.getElementById('generate-btn');
-    const loadingSpinner = document.getElementById('loading-spinner');
-    const resultDiv = document.getElementById('result');
-    const errorMessageDiv = document.getElementById('error-message');
-    const copyBtn = document.getElementById('copy-btn');
+    const outputDiv = document.getElementById('output');
+    const modelButtons = document.querySelectorAll('.model-select');
+    const topicSelect = document.getElementById('topicSelect');
+    const modelDescription = document.getElementById('modelDescription');
 
-    // Function to handle the form submission
-    form.addEventListener('submit', async function(e) {
+    // Current model state
+    let currentModel = 'transformer';
+
+    // Model descriptions in Chinese
+    const modelDescriptions = {
+        transformer: 'GPT-2：强大的语言模型，生成连贯的文本',
+        markov: '马尔可夫链：基于统计的文本生成模型'
+    };
+
+    // Handle model selection
+    modelButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+            const model = this.dataset.model;
+            
+            try {
+                const response = await fetch('/change_model', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ model_type: model })
+                });
+
+                if (response.ok) {
+                    // Update UI
+                    currentModel = model;
+                    modelButtons.forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    modelDescription.textContent = modelDescriptions[model];
+                }
+            } catch (error) {
+                console.error('模型切换错误:', error);
+            }
+        });
+    });
+
+    // Handle form submission
+    generateForm.addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        // Get the prompt value
         const prompt = promptInput.value.trim();
-
-        // Get the selected model
-        const modelSelect = document.getElementById('model-select');
-        const modelType = modelSelect ? modelSelect.value : 'transformer';
-
-        // Validate the prompt
         if (!prompt) {
-            // Get error message from data attribute based on current language
-            const errorMsg = document.getElementById('error-messages').getAttribute('data-empty-prompt-error');
-            showError(errorMsg || 'Please enter a keyword or phrase.');
+            outputDiv.innerHTML = '<div class="alert alert-danger">请输入关键词或短语</div>';
             return;
         }
 
-        // Reset previous results and errors
-        resetOutput();
-
         // Show loading state
-        setLoadingState(true);
+        outputDiv.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><p>生成中...</p></div>';
 
         try {
-            // Make API request to generate text
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    prompt,
-                    model_type: modelType
+                    prompt: prompt,
+                    model_type: currentModel,
+                    topic: topicSelect.value
                 })
             });
 
-            // Check if the response is OK
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to generate text');
-            }
-
-            // Parse the response data
             const data = await response.json();
 
-            // Display the generated text and model used
-            const modelUsed = data.model_used || 'unknown';
-            displayGeneratedText(data.generated_text, modelUsed);
+            if (response.ok) {
+                // Format the output
+                let outputHtml = '<div class="generated-text">';
+                if (data.generated_text.startsWith(prompt)) {
+                    outputHtml += `<span class="prompt">${prompt}</span>`;
+                    outputHtml += `<span class="generated">${data.generated_text.substring(prompt.length)}</span>`;
+                } else {
+                    outputHtml += `<span class="generated">${data.generated_text}</span>`;
+                }
+                outputHtml += '</div>';
+                outputHtml += `<div class="mt-2"><small class="text-muted">使用模型: ${data.model_used}</small></div>`;
+                outputHtml += '<button class="btn btn-sm btn-outline-secondary mt-2 copy-button">复制文本</button>';
+                
+                outputDiv.innerHTML = outputHtml;
 
-            // Enable the copy button
-            copyBtn.disabled = false;
-
+                // Add copy functionality
+                const copyButton = outputDiv.querySelector('.copy-button');
+                copyButton.addEventListener('click', async () => {
+                    try {
+                        await navigator.clipboard.writeText(data.generated_text);
+                        copyButton.textContent = '已复制！';
+                        setTimeout(() => {
+                            copyButton.textContent = '复制文本';
+                        }, 2000);
+                    } catch (err) {
+                        console.error('复制失败:', err);
+                        copyButton.textContent = '复制失败';
+                    }
+                });
+            } else {
+                outputDiv.innerHTML = `<div class="alert alert-danger">${data.error || '生成文本时发生错误'}</div>`;
+            }
         } catch (error) {
-            // Display error message
-            const errorMsg = document.getElementById('error-messages').getAttribute('data-generation-error');
-            showError(error.message || errorMsg || 'An error occurred while generating text.');
-            console.error('Text generation error:', error);
-        } finally {
-            // Hide loading state
-            setLoadingState(false);
+            console.error('生成错误:', error);
+            outputDiv.innerHTML = '<div class="alert alert-danger">生成文本时发生错误</div>';
         }
     });
 
-    // Function to display the generated text and model used
-    function displayGeneratedText(text, modelUsed) {
-        resultDiv.innerHTML = '';
-
-        // Add model info
-        const modelInfo = document.createElement('p');
-        modelInfo.innerHTML = `<small><strong>Model used:</strong> ${modelUsed.charAt(0).toUpperCase() + modelUsed.slice(1)}</small>`;
-        modelInfo.style.color = '#6c757d';
-        modelInfo.style.marginBottom = '10px';
-        resultDiv.appendChild(modelInfo);
-
-        // Add generated text
-        const paragraph = document.createElement('p');
-        paragraph.textContent = text;
-        resultDiv.appendChild(paragraph);
-    }
-
-    // Function to show error message
-    function showError(message) {
-        errorMessageDiv.textContent = message;
-        errorMessageDiv.classList.remove('d-none');
-    }
-
-    // Function to reset the output area
-    function resetOutput() {
-        resultDiv.innerHTML = '<p class="text-muted">Generated text will appear here...</p>';
-        errorMessageDiv.classList.add('d-none');
-        errorMessageDiv.textContent = '';
-        copyBtn.disabled = true;
-    }
-
-    // Function to set loading state
-    function setLoadingState(isLoading) {
-        if (isLoading) {
-            generateBtn.disabled = true;
-            loadingSpinner.classList.remove('d-none');
-            resultDiv.classList.add('loading');
-        } else {
-            generateBtn.disabled = false;
-            loadingSpinner.classList.add('d-none');
-            resultDiv.classList.remove('loading');
-        }
-    }
-
-    // Copy button functionality
-    copyBtn.addEventListener('click', function() {
-        const textToCopy = resultDiv.textContent;
-
-        // Use the Clipboard API to copy text
-        navigator.clipboard.writeText(textToCopy)
-            .then(() => {
-                // Change button text temporarily to indicate success
-                const originalText = copyBtn.innerHTML;
-                const copySuccessMsg = document.getElementById('error-messages').getAttribute('data-copy-success');
-                copyBtn.innerHTML = '<i class="bi bi-check"></i> ' + (copySuccessMsg || 'Copied!');
-                copyBtn.classList.add('btn-success');
-                copyBtn.classList.remove('btn-outline-secondary');
-
-                // Restore original button text after a delay
-                setTimeout(() => {
-                    copyBtn.innerHTML = originalText;
-                    copyBtn.classList.remove('btn-success');
-                    copyBtn.classList.add('btn-outline-secondary');
-                }, 2000);
-            })
-            .catch(err => {
-                console.error('Could not copy text:', err);
-                const copyErrorMsg = document.getElementById('error-messages').getAttribute('data-copy-error');
-                showError(copyErrorMsg || 'Failed to copy text to clipboard');
-            });
-    });
-
-    // Add example prompts for user guidance
-    // Get current language
-    const currentLang = document.documentElement.lang || 'en';
-
-    // Define prompts for different languages
-    const promptsByLanguage = {
-        'en': [
-            "The future of technology",
-            "Once upon a time",
-            "Climate change is",
-            "Artificial intelligence will",
-            "The most important invention"
-        ],
-        'zh': [
-            "科技的未来",
-            "从前有一个",
-            "气候变化是",
-            "人工智能将会",
-            "最重要的发明"
-        ]
-    };
-
-    // Use the appropriate prompts based on language, fallback to English
-    const examplePrompts = promptsByLanguage[currentLang] || promptsByLanguage['en'];
-
-    // Randomly select an example for the placeholder
-    promptInput.placeholder = examplePrompts[Math.floor(Math.random() * examplePrompts.length)];
+    // Set initial model description
+    modelDescription.textContent = modelDescriptions[currentModel];
 });

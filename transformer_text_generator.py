@@ -1,6 +1,8 @@
 import logging
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from deep_translator import GoogleTranslator
+import pandas as pd
 
 class TransformerTextGenerator:
     def __init__(self, model_name="distilgpt2"):
@@ -12,6 +14,7 @@ class TransformerTextGenerator:
         """
         self.logger = logging.getLogger(__name__)
         self.model_name = model_name
+        self.translator = GoogleTranslator(source='en', target='zh-CN')
 
         try:
             self.logger.info(f"Initializing transformer text generator with model: {model_name}")
@@ -44,7 +47,22 @@ class TransformerTextGenerator:
             "device": self.device
         }
 
-    def generate_text(self, prompt, max_length=150, temperature=0.7, num_return_sequences=1):
+    def _prepare_topic_context(self, topic_data):
+        """Prepare context from topic-specific data"""
+        if topic_data is None:
+            return ""
+            
+        context = []
+        for col in topic_data.columns:
+            texts = topic_data[col].dropna().astype(str).tolist()
+            # Take a few random samples from the topic data
+            samples = pd.Series(texts).sample(min(3, len(texts))).tolist()
+            context.extend(samples)
+        
+        # Join the samples with newlines
+        return "\n".join(context)
+
+    def generate_text(self, prompt, max_length=200, temperature=0.7, topic_data=None):
         """
         Generate text based on the given prompt using the transformer model.
 
@@ -52,7 +70,7 @@ class TransformerTextGenerator:
             prompt (str): The input text to base generation on
             max_length (int): Maximum length of the generated text
             temperature (float): Controls randomness (higher = more random)
-            num_return_sequences (int): Number of text sequences to generate
+            topic_data (pd.DataFrame): Topic-specific data to provide context
 
         Returns:
             str: The generated text
@@ -60,102 +78,54 @@ class TransformerTextGenerator:
         try:
             self.logger.info(f"Generating text for prompt: {prompt}")
 
-            # Simple encoding without padding to avoid issues
-            input_ids = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
+            # Translate Chinese prompt to English for the model
+            try:
+                en_prompt = GoogleTranslator(source='zh-CN', target='en').translate(prompt)
+            except Exception as e:
+                self.logger.warning(f"Translation failed, using original prompt: {e}")
+                en_prompt = prompt
 
-            # Calculate appropriate max_length for the model
-            input_length = len(input_ids[0])
-            # Ensure we generate a substantial amount of text (at least 100 tokens)
-            generation_length = max(100, min(max_length, 1024 - input_length))  # Most models have a context limit of 1024
+            # Prepare topic-specific context if available
+            context = self._prepare_topic_context(topic_data)
+            
+            # Combine context with prompt if available
+            full_prompt = f"{context}\n{en_prompt}" if context else en_prompt
 
-            self.logger.info(f"Input length: {input_length}, Generation length: {generation_length}")
+            # Encode the input
+            inputs = self.tokenizer(full_prompt, return_tensors="pt", truncation=True)
+            if torch.cuda.is_available():
+                inputs = inputs.to('cuda')
 
-            # Generate text using a more creative approach
+            # Generate text
             with torch.no_grad():
-                self.logger.info("Starting text generation with transformer model...")
-                output = self.model.generate(
-                    input_ids,
-                    max_length=input_length + generation_length,
-                    do_sample=True,  # Enable sampling
-                    top_k=50,         # Consider top 50 tokens
-                    top_p=0.95,       # Increase nucleus sampling probability
-                    temperature=0.8,   # Slightly higher temperature for more creativity
-                    repetition_penalty=1.2,  # Penalize repetition
+                outputs = self.model.generate(
+                    **inputs,
+                    max_length=max_length,
+                    temperature=temperature,
                     num_return_sequences=1,
                     pad_token_id=self.tokenizer.eos_token_id,
-                    no_repeat_ngram_size=3  # Avoid repeating 3-grams
+                    do_sample=True,
+                    top_k=50,
+                    top_p=0.95
                 )
-                self.logger.info(f"Generation complete. Output shape: {output.shape}")
 
             # Decode the generated text
-            generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)
+            generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-            # Check if we're just returning the prompt
-            if generated_text.strip() == prompt.strip() or len(generated_text) < len(prompt) + 10:
-                self.logger.warning("Generated text is too similar to the prompt. Trying again with different parameters.")
-                # Try a completely different approach for generation
-                try:
-                    # Use the model directly for text generation
-                    encoded_input = self.tokenizer(prompt, return_tensors='pt').to(self.device)
-                    outputs = self.model(**encoded_input)
-                    next_token_logits = outputs.logits[:, -1, :]
+            # Remove the context from the generated text if it was used
+            if context:
+                generated_text = generated_text.replace(context, "").strip()
 
-                    # Get the most likely next tokens
-                    probs = torch.softmax(next_token_logits, dim=-1)
-                    top_k_probs, top_k_indices = torch.topk(probs, k=5, dim=-1)
+            # Translate back to Chinese
+            try:
+                generated_text = self.translator.translate(generated_text)
+            except Exception as e:
+                self.logger.error(f"Translation error: {e}")
+                # Continue with untranslated text if translation fails
 
-                    # Choose one of the top tokens
-                    chosen_idx = top_k_indices[0, torch.multinomial(top_k_probs[0], num_samples=1)]
-                    generated_ids = torch.cat([encoded_input.input_ids, chosen_idx.unsqueeze(0).unsqueeze(0)], dim=-1)
-
-                    # Continue generating tokens
-                    for _ in range(generation_length):
-                        outputs = self.model(input_ids=generated_ids)
-                        next_token_logits = outputs.logits[:, -1, :]
-                        probs = torch.softmax(next_token_logits, dim=-1)
-                        top_k_probs, top_k_indices = torch.topk(probs, k=5, dim=-1)
-                        chosen_idx = top_k_indices[0, torch.multinomial(top_k_probs[0], num_samples=1)]
-                        generated_ids = torch.cat([generated_ids, chosen_idx.unsqueeze(0).unsqueeze(0)], dim=-1)
-
-                        # Stop if we generate an EOS token
-                        if chosen_idx.item() == self.tokenizer.eos_token_id:
-                            break
-
-                    # Decode the generated text
-                    generated_text = self.tokenizer.decode(generated_ids[0], skip_special_tokens=True)
-                except Exception as e:
-                    self.logger.warning(f"Alternative generation method failed: {e}")
-                    # Fall back to a simpler approach
-                    output = self.model.generate(
-                        input_ids,
-                        max_length=input_length + generation_length,
-                        num_beams=5,
-                        no_repeat_ngram_size=2,
-                        num_return_sequences=1,
-                        pad_token_id=self.tokenizer.eos_token_id
-                    )
-                    generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)
-
-            self.logger.info(f"Text generation successful. Generated {len(generated_text)} characters.")
+            self.logger.info("Text generation successful")
             return generated_text
 
         except Exception as e:
             self.logger.error(f"Error in text generation: {e}")
-            import traceback
-            self.logger.error(traceback.format_exc())
-            # Fallback to a simpler method if the advanced one fails
-            try:
-                self.logger.info("Attempting fallback generation method...")
-                input_ids = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
-                output = self.model.generate(
-                    input_ids,
-                    max_length=input_length + 50,
-                    num_return_sequences=1,
-                    pad_token_id=self.tokenizer.eos_token_id
-                )
-                generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)
-                return generated_text
-            except Exception as e2:
-                self.logger.error(f"Fallback generation also failed: {e2}")
-                # Return a message if all else fails
-                return f"{prompt} [Error: Unable to generate text with the transformer model. Please try again with a different prompt or model.]"
+            raise
